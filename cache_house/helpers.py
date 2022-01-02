@@ -1,16 +1,23 @@
 import hashlib
-from datetime import datetime, timedelta
+import pickle
+from datetime import timedelta
 
-DEFAULT_EXPIRE = timedelta(seconds=30)
+DEFAULT_EXPIRE_TIME = timedelta(seconds=180)
+DEFAULT_NAMESPACE = "main"
+DEFAULT_PREFIX = "cachehouse"
+
 
 def key_builder(
     module: str,
     name: str,
     args,
     kwargs,
-    prefix: str = "cachehouse",
-    namespace: str = "main",
+    prefix: str = DEFAULT_PREFIX,
+    namespace: str = DEFAULT_NAMESPACE,
 ):
+
+    """Build key for caching data"""
+
     prefix = f"{prefix}:{namespace}:"
     cache_key = (
         prefix + hashlib.md5(f"{module}:{name}:{args}:{kwargs}".encode()).hexdigest()
@@ -18,7 +25,9 @@ def key_builder(
     return cache_key
 
 
-# def encode_data(data):
-#     if isinstance(datetime, data):
-#         return str(data)
-#     elif isinstance(list, data):
+def pickle_encoder(data):
+    return pickle.dumps(data)
+
+
+def pickle_decoder(data):
+    return pickle.loads(data)
