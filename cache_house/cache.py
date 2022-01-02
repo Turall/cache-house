@@ -1,12 +1,12 @@
 import inspect
 import logging
 from datetime import timedelta
-from typing import Callable, Any, Union
 from functools import wraps
-from cache_house.helpers import DEFAULT_EXPIRE_TIME
+from typing import Any, Callable, Union
+
 from cache_house.backends.redis_backend import RedisCache
 from cache_house.backends.redis_cluster_backend import RedisClusterCache
-
+from cache_house.helpers import DEFAULT_EXPIRE_TIME
 
 log = logging.getLogger(__name__)
 

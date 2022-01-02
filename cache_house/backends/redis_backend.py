@@ -1,51 +1,52 @@
 import logging
-from typing import Callable, Any, Union
 from datetime import timedelta
+from typing import Any, Callable, Union
 
 from redis import Redis
-from cache_house.helpers import (
-    pickle_encoder,
-    pickle_decoder,
-    DEFAULT_PREFIX,
-    DEFAULT_NAMESPACE,
-    key_builder,
-)
 
+from cache_house.backends.base import RedisBaseCache
+from cache_house.helpers import (DEFAULT_NAMESPACE, DEFAULT_PREFIX,
+                                 key_builder, pickle_decoder, pickle_encoder)
 
 log = logging.getLogger(__name__)
 
 
-class RedisCache:
-    instance = None
+class RedisCache(RedisBaseCache):
+    def __init__(self,
+                 host: str = "localhost",
+                 port: int = 6379,
+                 encoder: Callable[..., Any] = ...,
+                 decoder: Callable[..., Any] = ...,
+                 namespace: str = ...,
+                 key_prefix: str = ...,
+                 key_builder: Callable[..., Any] = ...,
+                 password: str = ...,
+                 db: int = ...,
+                 **kwargs
+                 ) -> None:
+        super().__init__(host=host,
+                         port=port,
+                         encoder=encoder,
+                         decoder=decoder,
+                         namespace=namespace,
+                         key_prefix=key_prefix,
+                         key_builder=key_builder,
+                         **kwargs
+                         )
 
-    def __init__(
-        self,
-        password: str = None,
-        db: int = 0,
-        host: str = "localhost",
-        port: int = 6379,
-        encoder: Callable[..., Any] = pickle_encoder,
-        decoder: Callable[..., Any] = pickle_decoder,
-        namespace: str = DEFAULT_NAMESPACE,
-        key_prefix: str = DEFAULT_PREFIX,
-        key_builder: Callable[..., Any] = key_builder,
-        **kwargs,
-    ) -> None:
-        self.redis = Redis(
-            host=host,
-            port=port,
-            db=db,
-            password=password,
-            **kwargs,
-        )
-        self.encoder = encoder
-        self.decoder = decoder
-        self.namespace = namespace
-        self.key_prefix = key_prefix
-        self.key_builder = key_builder
-        RedisCache.instance = self
-        log.info("redis intialized")
-        log.info(f"send ping to redis {self.redis.ping()}")
+        if not self.__class__.__name__ == "RedisClusterCache":
+            self.password = password
+            self.db = db
+            self.redis = Redis(
+                host=host,
+                port=port,
+                db=db,
+                password=password,
+                **kwargs,
+            )
+            RedisCache.instance = self
+            log.info("redis intialized")
+            log.info(f"send ping to redis {self.redis.ping()}")
 
     def set_key(self, key, val, exp: Union[timedelta, int]):
         val = self.encoder(val)
@@ -56,12 +57,6 @@ class RedisCache:
         if val:
             val = self.decoder(val)
         return val
-
-    @classmethod
-    def get_instance(cls):
-        if cls.instance:
-            return cls.instance
-        raise Exception("You mus be initialize redis first")
 
     @classmethod
     def clear_keys(cls, pattern: str):
