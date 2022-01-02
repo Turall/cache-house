@@ -1,8 +1,12 @@
 [tool.poetry]
-name = "fast-cache"
+name = "cache_house"
 version = "0.1.0"
 description = ""
-authors = ["turall <tural.muradov@pashabank.az>"]
+readme = "README.rst"
+license = "MIT"
+homepage = "https://github.com/Turall/cache_house"
+repository = "https://github.com/Turall/cache_house"
+authors = ["Tural Muradov <tural.muradov@pashabank.az>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"

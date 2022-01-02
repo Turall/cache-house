@@ -1,6 +1,8 @@
+from datetime import timedelta
 import logging
+from typing import Union
 from redis import Redis
-
+from cache_house.helpers import DEFAULT_EXPIRE
 
 log = logging.getLogger(__name__)
 
@@ -21,8 +23,8 @@ class RedisCache:
         log.info("redis intialized")
         log.info(f"send ping to redis {self.redis.ping()}")
 
-    def set_key(self, key, val, exp: int):
-        self.redis.set(key, val,ex = exp)
+    def set_key(self, key, val, exp: Union[timedelta, int]):
+        self.redis.set(key, val, ex=exp)
 
     def get_key(self, key: str):
         return self.redis.get(key)
@@ -32,6 +34,15 @@ class RedisCache:
         if cls.instance:
             return cls.instance
         raise Exception("You mus be initialize redis first")
+    
+    def clear_keys(self, pattern: str):
+        ns_keys = pattern + '*'
+        for key in  self.redis.scan_iter(match=ns_keys):
+            print(key)
+            if key:
+                print("find")
+                self.redis.delete(key)
+        return True
 
     @classmethod
     def init(

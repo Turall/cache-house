@@ -1,4 +1,4 @@
-from fast_cache import __version__
+from cache_house import __version__
 
 
 def test_version():

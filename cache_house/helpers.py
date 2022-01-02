@@ -1,5 +1,7 @@
 import hashlib
+from datetime import timedelta
 
+DEFAULT_EXPIRE = timedelta(seconds=30)
 
 def key_builder(
     module: str,

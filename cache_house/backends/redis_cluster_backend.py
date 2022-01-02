@@ -1,6 +1,6 @@
 import logging
 from redis.cluster import RedisCluster
-from fast_cache.backends.redis_backend import RedisCache
+from cache_house.backends.redis_backend import RedisCache
 
 
 
