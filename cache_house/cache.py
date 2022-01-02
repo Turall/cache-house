@@ -5,8 +5,11 @@ from typing import Callable, Any, Union
 from functools import wraps
 from cache_house.helpers import DEFAULT_EXPIRE, key_builder
 from cache_house.backends.redis_backend import RedisCache
+from cache_house.backends.redis_cluster_backend import RedisClusterCache
+
 
 log = logging.getLogger(__name__)
+
 
 
 def cache(
@@ -21,7 +24,12 @@ def cache(
             key = key_builder(
                 f.__module__, f.__name__, args, kwargs, namespace=namespace, prefix=key_prefix
             )
-            cache_instance = RedisCache.get_instance()
+            if RedisCache.instance:
+                cache_instance = RedisCache.get_instance()
+            elif RedisClusterCache.instance:
+                cache_instance = RedisClusterCache.get_instance()
+            else:
+                raise Exception("You mus be initialize redis first")
             cached_data = cache_instance.get_key(key)
             if cached_data:
                 log.info("data exist in cache")

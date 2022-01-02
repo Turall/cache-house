@@ -12,7 +12,7 @@ class RedisClusterCache(RedisCache):
 
     def __init__(
         self,
-        host=None,
+        host="localhost",
         port=6379,
         startup_nodes=None,
         cluster_error_retry_attempts=3,
@@ -38,7 +38,7 @@ class RedisClusterCache(RedisCache):
     @classmethod
     def init(
         cls,
-        host=None,
+        host="localhost",
         port=6379,
         startup_nodes=None,
         cluster_error_retry_attempts=3,

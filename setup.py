@@ -10,7 +10,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="cache_house",
-    version="0.1.1",
+    version="0.1.2",
     author="Tural Muradov",
     author_email="tural_m@hotmail.com",
     description="",
