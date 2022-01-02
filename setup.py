@@ -5,7 +5,7 @@
 
 import setuptools
 
-with open("README.rst", "r") as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -16,7 +16,7 @@ setuptools.setup(
     description="",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Turall/cache_house",
+    url="https://github.com/Turall/cache-house",
     license="MIT",
     install_requires=[
         "redis=^4.1.0"

@@ -2,11 +2,11 @@
 name = "cache_house"
 version = "0.1.0"
 description = ""
-readme = "README.rst"
+readme = "README.md"
 license = "MIT"
-homepage = "https://github.com/Turall/cache_house"
-repository = "https://github.com/Turall/cache_house"
-authors = ["Tural Muradov <tural.muradov@pashabank.az>"]
+homepage = "https://github.com/Turall/cache-house"
+repository = "https://github.com/Turall/cache-house"
+authors = ["Tural Muradov <tural_m@hotmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"

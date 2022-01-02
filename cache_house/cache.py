@@ -6,8 +6,8 @@ from cache_house.helpers import DEFAULT_EXPIRE, key_builder
 from cache_house.backends.redis_backend import RedisCache
 
 
-def log_class(expire: Union[timedelta, int] = DEFAULT_EXPIRE) -> Callable:
-    def cache(f: Callable[..., Any]):
+def cache(expire: Union[timedelta, int] = DEFAULT_EXPIRE) -> Callable:
+    def cache_wrap(f: Callable[..., Any]):
         @wraps(f)
         async def async_wrapper(*args, **kwargs):
             key = key_builder(f.__module__, f.__name__, args, kwargs)
@@ -32,4 +32,4 @@ def log_class(expire: Union[timedelta, int] = DEFAULT_EXPIRE) -> Callable:
 
         return async_wrapper if inspect.iscoroutinefunction(f) else wrapper
 
-    return cache
+    return cache_wrap
