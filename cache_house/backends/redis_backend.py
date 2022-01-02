@@ -1,8 +1,8 @@
-from datetime import timedelta
 import logging
+import pickle
+from datetime import timedelta
 from typing import Union
 from redis import Redis
-from cache_house.helpers import DEFAULT_EXPIRE
 
 log = logging.getLogger(__name__)
 
@@ -24,10 +24,14 @@ class RedisCache:
         log.info(f"send ping to redis {self.redis.ping()}")
 
     def set_key(self, key, val, exp: Union[timedelta, int]):
+        val = pickle.dumps(val)
         self.redis.set(key, val, ex=exp)
 
     def get_key(self, key: str):
-        return self.redis.get(key)
+        val = self.redis.get(key)
+        if val:
+            val = pickle.loads(val)
+        return val
 
     @classmethod
     def get_instance(cls):
