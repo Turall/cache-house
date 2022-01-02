@@ -4,7 +4,7 @@ from cache_house.cache import cache
 from time import sleep
 import asyncio
 
-RedisCache.init()
+RedisClusterCache.init()
 
 @cache(expire=30, namespace="app", key_prefix="test")
 async def test_cache(a: int,b: int):

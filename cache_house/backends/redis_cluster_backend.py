@@ -51,8 +51,7 @@ class RedisClusterCache(RedisCache):
         self.key_prefix = key_prefix
         self.key_builder = key_builder
         RedisClusterCache.instance = self
-        log.info("redis initalized")
-        log.info(f"cluster nodes {self.redis.get_nodes()}")
+        log.info("redis cluster initalized")
 
     @classmethod
     def init(
@@ -74,14 +73,14 @@ class RedisClusterCache(RedisCache):
     ):
         if not cls.instance:
             cls(
-                host,
-                port,
-                startup_nodes,
-                cluster_error_retry_attempts,
-                require_full_coverage,
-                skip_full_coverage_check,
-                reinitialize_steps,
-                read_from_replicas,
+                host=host,
+                port=port,
+                startup_nodes=startup_nodes,
+                cluster_error_retry_attempts=cluster_error_retry_attempts,
+                require_full_coverage=require_full_coverage,
+                skip_full_coverage_check=skip_full_coverage_check,
+                reinitialize_steps=reinitialize_steps,
+                read_from_replicas=read_from_replicas,
                 encoder=encoder,
                 decoder=decoder,
                 namespace=namespace,
