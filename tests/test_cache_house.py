@@ -1,15 +1,12 @@
-from cache_house import __version__
 from unittest.mock import patch
+
 from fakeredis import FakeRedis
+
+from cache_house import __version__
 from cache_house.backends.redis_backend import RedisCache
 from cache_house.backends.redis_cluster_backend import RedisClusterCache
-from cache_house.helpers import (
-    DEFAULT_NAMESPACE,
-    DEFAULT_PREFIX,
-    key_builder,
-    pickle_decoder,
-    pickle_encoder,
-)
+from cache_house.helpers import (DEFAULT_NAMESPACE, DEFAULT_PREFIX,
+                                 key_builder, pickle_decoder, pickle_encoder)
 
 
 def custom_encoder():
@@ -18,6 +15,7 @@ def custom_encoder():
 
 def custom_decoder():
     pass
+
 
 def custom_key_builder():
     pass
@@ -90,5 +88,3 @@ def test_redis_cluster_init_with_args():
     assert RedisClusterCache.instance.key_prefix == "pytest"
     assert RedisClusterCache.instance.namespace == "test"
     RedisClusterCache.instance = None
-
-
