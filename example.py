@@ -1,27 +1,28 @@
 import asyncio
-
+import json
 from cache_house.backends.redis_backend import RedisCache
-from cache_house.backends.redis_cluster_backend import RedisClusterCache
 from cache_house.cache import cache
 
 RedisCache.init()
 
+def custom_encoder(data):
+    return json.dumps(data)
 
-@cache(expire=30, namespace="app", key_prefix="test")
+def custom_decoder(data):
+    return json.loads(data)
+
+@cache(expire=30, encoder=custom_encoder, decoder=custom_decoder, namespace="custom")
 async def test_cache(a: int, b: int):
     print("async cached")
-    return [a, b]
+    return {"a": a, "b": b}
 
 
-@cache(expire=30, key_prefix="test")
+@cache(expire=30)
 def test_cache_1(a: int, b: int):
     print("cached")
     return [a, b]
 
 
 if __name__ == "__main__":
-    # for i in range(20):
-    #     print(test_print(i, i+1))
-    # RedisCache.instance.clear_keys("fastcache:main")
     print(asyncio.run(test_cache(1, 2)))
     print(test_cache_1(3, 4))

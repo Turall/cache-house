@@ -60,13 +60,10 @@ class RedisCache(RedisBaseCache):
                 log.warning("connection refused to Redis server")
 
     def set_key(self, key, val, exp: Union[timedelta, int]):
-        val = self.encoder(val)
         self.redis.set(key, val, ex=exp)
 
     def get_key(self, key: str):
         val = self.redis.get(key)
-        if val:
-            val = self.decoder(val)
         return val
 
     @classmethod

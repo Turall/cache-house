@@ -22,7 +22,7 @@ def custom_key_builder():
 
 
 def test_version():
-    assert __version__ == "0.1.3"
+    assert __version__ == "0.1.4"
 
 
 @patch("cache_house.backends.redis_backend.Redis", FakeRedis)
