@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Callable
-import fakeredis
+
 
 from redis.cluster import RedisCluster
 from redis.exceptions import RedisClusterException
@@ -12,6 +12,11 @@ from cache_house.helpers import (
     pickle_decoder,
     pickle_encoder,
 )
+
+try:
+    from fakeredis import FakeRedis
+except ImportError:
+    FakeRedis = None
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +62,7 @@ class RedisClusterCache(RedisCache):
                 **kwargs,
             )
             
-            if not isinstance(self.redis, fakeredis.FakeRedis):
+            if FakeRedis is None:
                 log.info(f"redis cluster nodes {self.redis.get_nodes()}")
                 log.info("redis cluster initalized")
             RedisClusterCache.instance = self
