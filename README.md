@@ -1,12 +1,19 @@
-cache-house is a caching tool for python working with Redis single instance and Redis cluster mode
-==============
 
+<div align="center"> <h2> Caching tool for python, working with Redis single instance and Redis cluster mode <h1> </div>
+
+
+[PyPi link](https://pypi.org/project/cache-house/)
 
 ### Installation ###
 
 ```sh
- $ pip install cache-house or poetry add cache-house
+ $ pip install cache-house 
 ```
+or with poetry
+```sh
+poetry add cache-house
+```
+
 
 *****
 ### ***Quick Start*** ###
