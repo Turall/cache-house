@@ -1,9 +1,11 @@
 from __future__ import annotations
-
+import logging
 from typing import Any, Callable
 
 from cache_house.helpers import (DEFAULT_NAMESPACE, DEFAULT_PREFIX,
                                  key_builder, pickle_decoder, pickle_encoder)
+
+log = logging.getLogger(__name__)
 
 
 class RedisBaseCache:
@@ -32,4 +34,4 @@ class RedisBaseCache:
     def get_instance(cls):
         if cls.instance:
             return cls.instance
-        raise Exception("You mus be initialize redis first")
+        log.error("Redis is not intialized")

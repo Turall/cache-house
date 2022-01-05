@@ -61,6 +61,7 @@ def test_redis_init_with_args():
 @patch("cache_house.backends.redis_cluster_backend.RedisCluster", FakeRedis)
 def test_redis_cluster_init_defaults():
     RedisClusterCache.init()
+    print("TTTT" , RedisClusterCache.instance.redis)
     assert RedisClusterCache.instance is not None
     assert RedisClusterCache.instance.encoder == pickle_encoder
     assert RedisClusterCache.instance.decoder == pickle_decoder

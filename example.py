@@ -1,7 +1,7 @@
 import asyncio
 
 from cache_house.backends.redis_backend import RedisCache
-# from cache_house.backends.redis_cluster_backend import RedisClusterCache
+from cache_house.backends.redis_cluster_backend import RedisClusterCache
 from cache_house.cache import cache
 
 RedisCache.init()

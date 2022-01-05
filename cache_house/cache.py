@@ -18,20 +18,23 @@ def cache(
     key_builder: Callable[..., Any] = None,
 ) -> Callable:
     """Decorator for caching results"""
+
+    cache_instance = None
     if RedisCache.instance:
         cache_instance = RedisCache.get_instance()
     elif RedisClusterCache.instance:
         cache_instance = RedisClusterCache.get_instance()
-    else:
-        raise Exception("You mus be initialize redis first")
-
-    key_generator = key_builder or cache_instance.key_builder
-    namespace = namespace or cache_instance.namespace
-    prefix = key_prefix or cache_instance.key_prefix
+    if cache_instance is not None:
+        key_generator = key_builder or cache_instance.key_builder
+        namespace = namespace or cache_instance.namespace
+        prefix = key_prefix or cache_instance.key_prefix
 
     def cache_wrap(f: Callable[..., Any]):
         @wraps(f)
         async def async_wrapper(*args, **kwargs):
+            if cache_instance is None:
+                return await f(*args, **kwargs)
+
             key = key_generator(
                 f.__module__,
                 f.__name__,
@@ -52,6 +55,8 @@ def cache(
 
         @wraps(f)
         def wrapper(*args, **kwargs):
+            if cache_instance is None:
+                return f(*args, **kwargs)
             key = key_generator(
                 f.__module__,
                 f.__name__,
