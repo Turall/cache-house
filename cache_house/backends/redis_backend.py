@@ -14,6 +14,7 @@ from cache_house.helpers import (
 )
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 class RedisCache(RedisBaseCache):

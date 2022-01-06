@@ -1,11 +1,8 @@
 import asyncio
 import json
-from cache_house.backends.redis_backend import RedisCache
+
 from cache_house.cache import cache
-from example1 import test_cache as tt, test_cache_1 as tt1
 
-
-RedisCache.init()
 
 def custom_encoder(data):
     return json.dumps(data)
@@ -28,5 +25,3 @@ def test_cache_1(a: int, b: int):
 if __name__ == "__main__":
     print(asyncio.run(test_cache(1, 2)))
     print(test_cache_1(3, 4))
-    print(asyncio.run(tt(6, 2)))
-    print(tt1(3, 0))

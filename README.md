@@ -130,6 +130,50 @@ def RedisClusterCache.init(
     )
 ```
 
+*****
+### ***Setup cache instance with FastAPI***
+*****
+
+
+```python
+
+import logging
+import uvicorn
+from fastapi.applications import FastAPI
+from cache_house.backends.redis_backend import RedisCache
+from cache_house.cache import cache
+
+app = FastAPI()
+
+
+@app.on_event("startup")
+async def startup():
+    print("app started")
+    RedisCache.init()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    print("SHUTDOWN")
+    RedisCache.close_connections()
+
+@app.get("/notcached")
+async def test_route():
+    print("notcached")
+    return {"hello": "world"}
+
+
+@app.get("/cached")
+@cache()
+async def test_route():
+    print("cached") # second time when you request this print is not working
+    return {"hello": "world"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, port=8033)
+
+```
+
 
 *****
 ### You can set expire time (seconds) , namespace and key prefix in cache decorator ###

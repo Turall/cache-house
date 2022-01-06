@@ -19,6 +19,7 @@ except ImportError:
     FakeRedis = None
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 class RedisClusterCache(RedisCache):

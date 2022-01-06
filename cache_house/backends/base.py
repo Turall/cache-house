@@ -6,6 +6,7 @@ from cache_house.helpers import (DEFAULT_NAMESPACE, DEFAULT_PREFIX,
                                  key_builder, pickle_decoder, pickle_encoder)
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 class RedisBaseCache:
@@ -35,3 +36,9 @@ class RedisBaseCache:
         if cls.instance:
             return cls.instance
         log.error("Redis is not intialized")
+    
+    @classmethod
+    def close_connections(cls):
+        if cls.instance:
+            cls.instance.redis.close()
+            log.info("close redis connection")

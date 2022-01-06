@@ -9,7 +9,7 @@ from cache_house.backends.redis_cluster_backend import RedisClusterCache
 from cache_house.helpers import DEFAULT_EXPIRE_TIME
 
 log = logging.getLogger(__name__)
-
+log.setLevel(logging.INFO)
 
 def cache(
     expire: Union[timedelta, int] = DEFAULT_EXPIRE_TIME,
@@ -22,20 +22,24 @@ def cache(
     """Decorator for caching results"""
 
     cache_instance = None
-    if RedisCache.instance:
-        cache_instance = RedisCache.get_instance()
-    elif RedisClusterCache.instance:
-        cache_instance = RedisClusterCache.get_instance()
-    if cache_instance is not None:
-        key_generator = key_builder or cache_instance.key_builder
-        namespace = namespace or cache_instance.namespace
-        prefix = key_prefix or cache_instance.key_prefix
-        encoder = encoder or cache_instance.encoder
-        decoder = decoder or cache_instance.decoder
 
     def cache_wrap(f: Callable[..., Any]):
+
         @wraps(f)
         async def async_wrapper(*args, **kwargs):
+            nonlocal namespace
+            nonlocal encoder
+            nonlocal decoder
+            if RedisCache.instance:
+                cache_instance = RedisCache.get_instance()
+            elif RedisClusterCache.instance:
+                cache_instance = RedisClusterCache.get_instance()
+            if cache_instance is not None:
+                key_generator = key_builder or cache_instance.key_builder
+                namespace = namespace or cache_instance.namespace
+                prefix = key_prefix or cache_instance.key_prefix
+                encoder = encoder or cache_instance.encoder
+                decoder = decoder or cache_instance.decoder
             if cache_instance is None:
                 return await f(*args, **kwargs)
 
@@ -59,6 +63,19 @@ def cache(
 
         @wraps(f)
         def wrapper(*args, **kwargs):
+            nonlocal namespace
+            nonlocal encoder
+            nonlocal decoder
+            if RedisCache.instance:
+                cache_instance = RedisCache.get_instance()
+            elif RedisClusterCache.instance:
+                cache_instance = RedisClusterCache.get_instance()
+            if cache_instance is not None:
+                key_generator = key_builder or cache_instance.key_builder
+                namespace = namespace or cache_instance.namespace
+                prefix = key_prefix or cache_instance.key_prefix
+                encoder = encoder or cache_instance.encoder
+                decoder = decoder or cache_instance.decoder
             if cache_instance is None:
                 return f(*args, **kwargs)
             key = key_generator(
