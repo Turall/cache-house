@@ -57,33 +57,36 @@ class RedisFactory:
     ):
         if not cls.instance:
             backend = None
-            if cluster_mode:
-                backend = RedisClusterCache(
-                    host=host,
-                    port=port,
-                    db=db,
-                    password=password,
-                    encoder=encoder,
-                    decoder=decoder,
-                    namespace=namespace,
-                    key_prefix=key_prefix,
-                    key_builder=key_builder,
-                    **redis_kwargs,
-                )
-            else:
-                backend = RedisCache(
-                    host=host,
-                    port=port,
-                    db=db,
-                    password=password,
-                    encoder=encoder,
-                    decoder=decoder,
-                    namespace=namespace,
-                    key_prefix=key_prefix,
-                    key_builder=key_builder,
-                    **redis_kwargs,
-                )
-            cls.instance = backend.instance
+            try:
+                if cluster_mode:
+                    backend = RedisClusterCache(
+                        host=host,
+                        port=port,
+                        password=password,
+                        encoder=encoder,
+                        decoder=decoder,
+                        namespace=namespace,
+                        key_prefix=key_prefix,
+                        key_builder=key_builder,
+                        **redis_kwargs,
+                    )
+                else:
+                    backend = RedisCache(
+                        host=host,
+                        port=port,
+                        db=db,
+                        password=password,
+                        encoder=encoder,
+                        decoder=decoder,
+                        namespace=namespace,
+                        key_prefix=key_prefix,
+                        key_builder=key_builder,
+                        **redis_kwargs,
+                    )
+                cls.instance = backend.instance
+            except Exception as err:
+                log.error(err)
+                
 
     @classmethod
     def get_instance(cls):
