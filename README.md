@@ -22,11 +22,11 @@ poetry add cache-house
 cache decorator work with async and sync functions
 
 ```python
-from cache_house.backends.redis_backend import RedisCache
+from cache_house.backends import RedisFactory
 from cache_house.cache import cache
 import asyncio
 
-RedisCache.init()
+RedisFactory.init()
 
 @cache() # default expire time is 180 seconds
 async def test_cache(a: int,b: int):
@@ -59,7 +59,7 @@ Check stored cache key
 You can pass all [redis-py](https://github.com/redis/redis-py) arguments to  RedisCache.init method and additional arguments : 
 
 ```python
-def RedisCache.init(
+def RedisFactory.init(
         host: str = "localhost",
         port: int = 6379,
         encoder: Callable[..., Any] = ...,
@@ -69,13 +69,14 @@ def RedisCache.init(
         key_builder: Callable[..., Any] = ...,
         password: str = ...,
         db: int = ...,
-        **kwargs
+        cluster_mode: bool =False
+        **redis_kwargs
     )
 ```
 or you can set your own encoder and decoder functions
 
 ```python
-from cache_house.backends.redis_backend import RedisCache
+from cache_house.backends import RedisFactory
 
 def custom_encoder(data):
     return json.dumps(data)
@@ -83,7 +84,7 @@ def custom_encoder(data):
 def custom_decoder(data):
     return json.loads(data)
 
-RedisCache.init(encoder=custom_encoder, decoder=custom_decoder)
+RedisFactory.init(encoder=custom_encoder, decoder=custom_decoder)
 
 ```
 
@@ -97,10 +98,10 @@ All manipulation with RedisCache  same with a RedisClusterCache
 
 ```python
 
-from cache_house.backends.redis_cluster_backend import RedisClusterCache
+from cache_house.backends import RedisFactory
 from cache_house.cache import cache
 
-RedisClusterCache.init()
+RedisFactory.init(cluster_mode=True)
 
 @cache()
 async def test_cache(a: int,b: int):
@@ -111,22 +112,22 @@ async def test_cache(a: int,b: int):
 
 ```python 
 
-def RedisClusterCache.init(
+def RedisFactory.init(   # for redis cluster
         cls,
         host="localhost",
         port=6379,
         encoder: Callable[..., Any] = pickle_encoder,
         decoder: Callable[..., Any] = pickle_decoder,
+        namespace: str = DEFAULT_NAMESPACE,
+        key_prefix: str = DEFAULT_PREFIX,
+        key_builder: Callable[..., Any] = key_builder,
+        cluster_mode: bool = False,
         startup_nodes=None,
         cluster_error_retry_attempts: int = 3,
         require_full_coverage: bool = True,
         skip_full_coverage_check: bool = False,
         reinitialize_steps: int = 10,
         read_from_replicas: bool = False,
-        namespace: str = DEFAULT_NAMESPACE,
-        key_prefix: str = DEFAULT_PREFIX,
-        key_builder: Callable[..., Any] = key_builder,
-        **kwargs,
     )
 ```
 
@@ -140,7 +141,7 @@ def RedisClusterCache.init(
 import logging
 import uvicorn
 from fastapi.applications import FastAPI
-from cache_house.backends.redis_backend import RedisCache
+from cache_house.backends import RedisFactory
 from cache_house.cache import cache
 
 app = FastAPI()
@@ -149,13 +150,13 @@ app = FastAPI()
 @app.on_event("startup")
 async def startup():
     print("app started")
-    RedisCache.init()
+    RedisFactory.init()
 
 
 @app.on_event("shutdown")
 async def shutdown():
     print("SHUTDOWN")
-    RedisCache.close_connections()
+    RedisFactory.close_connections()
 
 @app.get("/notcached")
 async def test_route():
@@ -204,10 +205,10 @@ rdcli KEYS "*"
 
 import asyncio
 import json
-from cache_house.backends.redis_backend import RedisCache
+from cache_house.backends import RedisFactory
 from cache_house.cache import cache
 
-RedisCache.init()
+RedisFactory.init()
 
 def custom_encoder(data):
     return json.dumps(data)

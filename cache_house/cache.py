@@ -4,8 +4,7 @@ from datetime import timedelta
 from functools import wraps
 from typing import Any, Callable, Union
 
-from cache_house.backends.redis_backend import RedisCache
-from cache_house.backends.redis_cluster_backend import RedisClusterCache
+from cache_house.backends import RedisFactory
 from cache_house.helpers import DEFAULT_EXPIRE_TIME
 
 log = logging.getLogger(__name__)
@@ -30,10 +29,9 @@ def cache(
             nonlocal namespace
             nonlocal encoder
             nonlocal decoder
-            if RedisCache.instance:
-                cache_instance = RedisCache.get_instance()
-            elif RedisClusterCache.instance:
-                cache_instance = RedisClusterCache.get_instance()
+
+            cache_instance = RedisFactory.get_instance()
+
             if cache_instance is not None:
                 key_generator = key_builder or cache_instance.key_builder
                 namespace = namespace or cache_instance.namespace
@@ -66,10 +64,8 @@ def cache(
             nonlocal namespace
             nonlocal encoder
             nonlocal decoder
-            if RedisCache.instance:
-                cache_instance = RedisCache.get_instance()
-            elif RedisClusterCache.instance:
-                cache_instance = RedisClusterCache.get_instance()
+            
+            cache_instance = RedisFactory.get_instance()
             if cache_instance is not None:
                 key_generator = key_builder or cache_instance.key_builder
                 namespace = namespace or cache_instance.namespace

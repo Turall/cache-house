@@ -1,81 +1,76 @@
 import logging
+from typing import Callable, Any, Union
 from datetime import timedelta
-from typing import Any, Callable, Union
 
 from redis import Redis
-from redis.exceptions import ConnectionError
-from cache_house.backends.base import RedisBaseCache
 from cache_house.helpers import (
-    DEFAULT_NAMESPACE,
-    DEFAULT_PREFIX,
-    key_builder,
-    pickle_decoder,
     pickle_encoder,
+    pickle_decoder,
+    DEFAULT_PREFIX,
+    DEFAULT_NAMESPACE,
+    key_builder,
 )
 
+
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 
-class RedisCache(RedisBaseCache):
+class RedisCache:
+    instance = None
+
     def __init__(
         self,
+        password: str = None,
+        db: int = 0,
         host: str = "localhost",
         port: int = 6379,
-        encoder: Callable[..., Any] = ...,
-        decoder: Callable[..., Any] = ...,
-        namespace: str = ...,
-        key_prefix: str = ...,
-        key_builder: Callable[..., Any] = ...,
-        password: str = ...,
-        db: int = ...,
+        encoder: Callable[..., Any] = pickle_encoder,
+        decoder: Callable[..., Any] = pickle_decoder,
+        namespace: str = DEFAULT_NAMESPACE,
+        key_prefix: str = DEFAULT_PREFIX,
+        key_builder: Callable[..., Any] = key_builder,
         **kwargs,
     ) -> None:
-        super().__init__(
+        self.redis = Redis(
             host=host,
             port=port,
-            encoder=encoder,
-            decoder=decoder,
-            namespace=namespace,
-            key_prefix=key_prefix,
-            key_builder=key_builder,
+            db=db,
+            password=password,
             **kwargs,
         )
-
-        if not self.__class__.__name__ == "RedisClusterCache":
-            self.password = password
-            self.db = db
-            try:
-                self.redis = Redis(
-                    host=host,
-                    port=port,
-                    db=db,
-                    password=password,
-                    **kwargs,
-                )
-                log.info("redis intialized")
-                log.info(f"send ping to redis {self.redis.ping()}")
-                RedisCache.instance = self
-            except ConnectionError as err:
-                log.error(err)
-                log.warning("connection refused to Redis server")
+        self.encoder = encoder
+        self.decoder = decoder
+        self.namespace = namespace
+        self.key_prefix = key_prefix
+        self.key_builder = key_builder
+        RedisCache.instance = self
+        log.info("redis intialized")
+        log.info(f"send ping to redis {self.redis.ping()}")
 
     def set_key(self, key, val, exp: Union[timedelta, int]):
+        val = self.encoder(val)
         self.redis.set(key, val, ex=exp)
 
     def get_key(self, key: str):
         val = self.redis.get(key)
+        if val:
+            val = self.decoder(val)
         return val
 
     @classmethod
+    def get_instance(cls):
+        if cls.instance:
+            return cls.instance
+        raise Exception("You mus be initialize redis first")
+
+    @classmethod
     def clear_keys(cls, pattern: str):
-        counter = 0
         ns_keys = pattern + "*"
         for key in cls.instance.redis.scan_iter(match=ns_keys):
+            print(key)
             if key:
-                counter += 1
+                print("find")
                 cls.instance.redis.delete(key)
-        log.info(f"{counter} keys are deleted from redis cache")
         return True
 
     @classmethod

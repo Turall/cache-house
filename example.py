@@ -1,11 +1,11 @@
 import asyncio
 import json
-from cache_house.backends.redis_backend import RedisCache
+from cache_house.backends import RedisFactory
 from cache_house.cache import cache
 from example1 import test_cache as tt, test_cache_1 as tt1
 
 
-RedisCache.init()
+RedisFactory.init()
 
 def custom_encoder(data):
     return json.dumps(data)
