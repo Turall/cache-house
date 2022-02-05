@@ -92,3 +92,18 @@ class RedisClusterCache(RedisCache):
                 key_builder=key_builder,
                 **kwargs,
             )
+
+    @classmethod
+    def clear_keys(cls, pattern: str):
+        keys = []
+        batch_size = 300
+        ns_keys = pattern + "*"
+        for key in cls.instance.redis.scan_iter(match=ns_keys,count=batch_size,target_nodes=RedisCluster.ALL_NODES):
+            log.info(key)
+            keys.append(key)
+            if len(keys) >= batch_size:
+                cls.instance.redis.delete(*keys)
+                keys = []
+        if len(keys) > 0:
+            cls.instance.redis.delete(*keys)
+            return True
