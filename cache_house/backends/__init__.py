@@ -3,6 +3,7 @@ import logging
 from typing import Any, Callable
 from cache_house.backends.redis_backend import RedisCache
 from cache_house.backends.redis_cluster_backend import RedisClusterCache
+from redis.connection import parse_url
 
 from cache_house.helpers import (
     DEFAULT_NAMESPACE,
@@ -55,6 +56,7 @@ class RedisFactory:
         cluster_mode: bool = False,
         **redis_kwargs,
     ):
+        # print(parse_url(host))
         if not cls.instance:
             backend = None
             try:
@@ -62,12 +64,12 @@ class RedisFactory:
                     backend = RedisClusterCache(
                         host=host,
                         port=port,
-                        password=password,
                         encoder=encoder,
                         decoder=decoder,
                         namespace=namespace,
                         key_prefix=key_prefix,
                         key_builder=key_builder,
+                        url=None,
                         **redis_kwargs,
                     )
                 else:
@@ -86,7 +88,7 @@ class RedisFactory:
                 cls.instance = backend.instance
             except Exception as err:
                 log.error(err)
-                
+
 
     @classmethod
     def get_instance(cls):
