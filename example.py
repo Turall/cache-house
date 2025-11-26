@@ -1,10 +1,12 @@
 import asyncio
 import json
+import logging
 from cache_house.backends import RedisFactory
 from cache_house.cache import cache
 from example1 import test_cache as tt, test_cache_1 as tt1
+log = logging.getLogger("cache_house.backends.redis_backend").setLevel(logging.DEBUG)
 
-
+# logging.basicConfig(level=logging.DEBUG)
 RedisFactory.init()
 
 def custom_encoder(data):
@@ -28,5 +30,5 @@ def test_cache_1(a: int, b: int):
 if __name__ == "__main__":
     print(asyncio.run(test_cache(1, 2)))
     print(test_cache_1(3, 4))
-    print(asyncio.run(tt(6, 2)))
-    print(tt1(3, 0))
+    print(asyncio.run(test_cache(6, 2)))
+    print(test_cache_1(3, 0))

@@ -1,8 +1,10 @@
 import logging
-from typing import Callable, Any, Union
+import time
+from typing import Callable, Any, Union, Dict, Optional
 from datetime import timedelta
 
 from redis import Redis
+from redis.exceptions import ConnectionError, TimeoutError, RedisError
 from cache_house.helpers import (
     pickle_encoder,
     pickle_decoder,
@@ -29,6 +31,7 @@ class RedisCache:
         namespace: str = DEFAULT_NAMESPACE,
         key_prefix: str = DEFAULT_PREFIX,
         key_builder: Callable[..., Any] = key_builder,
+        fallback_to_memory: bool = True,
         **kwargs,
     ) -> None:
         self.redis = Redis(
@@ -43,19 +46,81 @@ class RedisCache:
         self.namespace = namespace
         self.key_prefix = key_prefix
         self.key_builder = key_builder
+        self.fallback_to_memory = fallback_to_memory
+        self._memory_cache: Dict[str, tuple] = {}  # key -> (value, expiry_time)
         RedisCache.instance = self
-        log.info("redis intialized")
-        log.info(f"send ping to redis {self.redis.ping()}")
+        log.info("redis initialized (Redis will handle reconnections automatically)")
+
+    def _set_memory_cache(self, key: str, val: Any, exp: Union[timedelta, int]):
+        """Store value in in-memory cache with expiration"""
+        if isinstance(exp, timedelta):
+            expiry_time = time.time() + exp.total_seconds()
+        else:
+            expiry_time = time.time() + exp
+        self._memory_cache[key] = (val, expiry_time)
+        # Clean up expired entries periodically
+        if len(self._memory_cache) > 1000:
+            self._cleanup_memory_cache()
+
+    def _get_memory_cache(self, key: str) -> Optional[Any]:
+        """Get value from in-memory cache if not expired"""
+        if key in self._memory_cache:
+            val, expiry_time = self._memory_cache[key]
+            if time.time() < expiry_time:
+                return val
+            else:
+                # Expired, remove it
+                del self._memory_cache[key]
+        return None
+
+    def _cleanup_memory_cache(self):
+        """Remove expired entries from memory cache"""
+        current_time = time.time()
+        expired_keys = [
+            key for key, (_, expiry_time) in self._memory_cache.items()
+            if current_time >= expiry_time
+        ]
+        for key in expired_keys:
+            del self._memory_cache[key]
 
     def set_key(self, key, val, exp: Union[timedelta, int]):
-        val = self.encoder(val)
-        self.redis.set(key, val, ex=exp)
+        """Set key in Redis with fallback to memory cache"""
+        encoded_val = self.encoder(val)
+        
+        # Try Redis first - Redis client handles reconnection automatically
+        try:
+            self.redis.set(key, encoded_val, ex=exp)
+        except (ConnectionError, TimeoutError, RedisError) as e:
+            log.warning(f"Redis set_key failed: {e}")
+            # Fallback to memory cache if enabled
+            if self.fallback_to_memory:
+                try:
+                    self._set_memory_cache(key, encoded_val, exp)
+                    log.debug(f"Stored key '{key}' in memory cache (Redis unavailable)")
+                    print(self._memory_cache)
+                except Exception as mem_error:
+                    log.error(f"Failed to store in memory cache: {mem_error}")
 
     def get_key(self, key: str):
-        val = self.redis.get(key)
-        if val:
-            val = self.decoder(val)
-        return val
+        """Get key from Redis with fallback to memory cache"""
+        # Try Redis first - Redis client handles reconnection automatically
+        try:
+            val = self.redis.get(key)
+            if val:
+                return self.decoder(val)
+        except (ConnectionError, TimeoutError, RedisError) as e:
+            log.warning(f"Redis get_key failed: {e}")
+            # Fallback to memory cache if enabled
+            if self.fallback_to_memory:
+                try:
+                    encoded_val = self._get_memory_cache(key)
+                    if encoded_val:
+                        log.debug(f"Retrieved key '{key}' from memory cache (Redis unavailable)")
+                        return self.decoder(encoded_val)
+                except Exception as mem_error:
+                    log.error(f"Failed to retrieve from memory cache: {mem_error}")
+        
+        return None
 
     @classmethod
     def get_instance(cls):
@@ -65,13 +130,36 @@ class RedisCache:
 
     @classmethod
     def clear_keys(cls, pattern: str):
-        ns_keys = pattern + "*"
-        for key in cls.instance.redis.scan_iter(match=ns_keys):
-            print(key)
-            if key:
-                print("find")
-                cls.instance.redis.delete(key)
-        return True
+        """Clear keys matching pattern, with error handling"""
+        if not cls.instance:
+            log.warning("RedisCache instance not available")
+            return False
+        
+        ns_keys = f"{pattern}*"
+        
+        # Try Redis first - Redis client handles reconnection automatically
+        try:
+            for key in cls.instance.redis.scan_iter(match=ns_keys):
+                if key:
+                    cls.instance.redis.delete(key)
+            return True
+        except (ConnectionError, TimeoutError, RedisError) as e:
+            log.warning(f"Redis clear_keys failed: {e}")
+            # Fallback: clear from memory cache
+            if cls.instance.fallback_to_memory:
+                try:
+                    keys_to_delete = [
+                        key for key in cls.instance._memory_cache.keys()
+                        if key.startswith(pattern)
+                    ]
+                    for key in keys_to_delete:
+                        del cls.instance._memory_cache[key]
+                    log.debug(f"Cleared {len(keys_to_delete)} keys from memory cache")
+                    return True
+                except Exception as mem_error:
+                    log.error(f"Failed to clear memory cache: {mem_error}")
+        
+        return False
 
     @classmethod
     def init(
@@ -85,6 +173,7 @@ class RedisCache:
         namespace: str = DEFAULT_NAMESPACE,
         key_prefix: str = DEFAULT_PREFIX,
         key_builder: Callable[..., Any] = key_builder,
+        fallback_to_memory: bool = True,
         **kwargs,
     ):
         if not cls.instance:
@@ -98,5 +187,6 @@ class RedisCache:
                 namespace=namespace,
                 key_prefix=key_prefix,
                 key_builder=key_builder,
+                fallback_to_memory=fallback_to_memory,
                 **kwargs,
             )

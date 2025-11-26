@@ -49,14 +49,21 @@ def cache(
                 namespace=namespace,
                 prefix=prefix,
             )
-            cached_data = cache_instance.get_key(key)
-            if cached_data:
-                log.info("data exist in cache")
-                log.info("return data from cache")
-                return decoder(cached_data)
+            try:
+                cached_data = cache_instance.get_key(key)
+                if cached_data:
+                    log.info("data exist in cache")
+                    log.info("return data from cache")
+                    return decoder(cached_data)
+            except Exception as e:
+                log.warning(f"Error retrieving from cache: {e}. Proceeding without cache.")
+            
             result = await f(*args, **kwargs)
-            cache_instance.set_key(key, encoder(result), expire)
-            log.info("set result in cache")
+            try:
+                cache_instance.set_key(key, encoder(result), expire)
+                log.info("set result in cache")
+            except Exception as e:
+                log.warning(f"Error setting cache: {e}. Result returned without caching.")
             return result
 
         @wraps(f)
@@ -82,14 +89,21 @@ def cache(
                 namespace=namespace,
                 prefix=prefix,
             )
-            cached_data = cache_instance.get_key(key)
-            if cached_data:
-                log.info("data exist in cache")
-                log.info("return data from cache")
-                return decoder(cached_data)
+            try:
+                cached_data = cache_instance.get_key(key)
+                if cached_data:
+                    log.info("data exist in cache")
+                    log.info("return data from cache")
+                    return decoder(cached_data)
+            except Exception as e:
+                log.warning(f"Error retrieving from cache: {e}. Proceeding without cache.")
+            
             result = f(*args, **kwargs)
-            cache_instance.set_key(key, encoder(result), expire)
-            log.info("set result in cache")
+            try:
+                cache_instance.set_key(key, encoder(result), expire)
+                log.info("set result in cache")
+            except Exception as e:
+                log.warning(f"Error setting cache: {e}. Result returned without caching.")
             return result
 
         return async_wrapper if inspect.iscoroutinefunction(f) else wrapper
