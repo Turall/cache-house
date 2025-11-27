@@ -1,20 +1,24 @@
 import logging
+import os
 import time
-from typing import Callable, Any, Union, Dict, Optional
 from datetime import timedelta
+from typing import Any, Callable, Dict, Optional, Union
 
 from redis import Redis
-from redis.exceptions import ConnectionError, TimeoutError, RedisError
+from redis.exceptions import ConnectionError, RedisError, TimeoutError
+
+from cache_house.exceptions import RedisNotInitialized
 from cache_house.helpers import (
-    pickle_encoder,
-    pickle_decoder,
-    DEFAULT_PREFIX,
     DEFAULT_NAMESPACE,
+    DEFAULT_PREFIX,
     key_builder,
+    pickle_decoder,
+    pickle_encoder,
 )
 
-
-log = logging.getLogger(__name__)
+LOG_LEVEL = os.getenv("CACHE_HOUSE_LOG_LEVEL", logging.INFO)
+log = logging.getLogger("cache_house.backends.redis_backend")
+log.setLevel(LOG_LEVEL)
 
 
 class RedisCache:
@@ -97,7 +101,6 @@ class RedisCache:
                 try:
                     self._set_memory_cache(key, encoded_val, exp)
                     log.debug(f"Stored key '{key}' in memory cache (Redis unavailable)")
-                    print(self._memory_cache)
                 except Exception as mem_error:
                     log.error(f"Failed to store in memory cache: {mem_error}")
 
@@ -126,7 +129,7 @@ class RedisCache:
     def get_instance(cls):
         if cls.instance:
             return cls.instance
-        raise Exception("You mus be initialize redis first")
+        raise RedisNotInitialized("RedisCache", "You must initialize Redis before using the cache backend")
 
     @classmethod
     def clear_keys(cls, pattern: str):

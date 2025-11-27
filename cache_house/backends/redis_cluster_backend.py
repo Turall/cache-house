@@ -1,19 +1,22 @@
 import logging
-import time
-from typing import Callable, Any, Dict, Optional
+import os
+from typing import Any, Callable, Dict
+
 from redis.cluster import RedisCluster
-from redis.exceptions import ConnectionError, TimeoutError, RedisError
+from redis.exceptions import ConnectionError, RedisError, TimeoutError
+
 from cache_house.backends.redis_backend import RedisCache
 from cache_house.helpers import (
-    pickle_encoder,
-    pickle_decoder,
-    DEFAULT_PREFIX,
     DEFAULT_NAMESPACE,
+    DEFAULT_PREFIX,
     key_builder,
+    pickle_decoder,
+    pickle_encoder,
 )
 
-
-log = logging.getLogger(__name__)
+LOG_LEVEL = os.getenv("CACHE_HOUSE_LOG_LEVEL", logging.INFO)
+log = logging.getLogger("cache_house.backends.redis_cluster_backend")
+log.setLevel(LOG_LEVEL)
 
 
 class RedisClusterCache(RedisCache):
@@ -151,9 +154,9 @@ class RedisClusterCache(RedisCache):
                 if len(keys) >= batch_size:
                     cls.instance.redis.delete(*keys)
                     keys = []
-            if len(keys) > 0:
-                cls.instance.redis.delete(*keys)
-            return True
+                if len(keys) > 0:
+                    cls.instance.redis.delete(*keys)
+                    return True
         except (ConnectionError, TimeoutError, RedisError) as e:
             log.warning(f"Redis cluster clear_keys failed: {e}")
             # Fallback: clear from memory cache
@@ -169,5 +172,5 @@ class RedisClusterCache(RedisCache):
                     return True
                 except Exception as mem_error:
                     log.error(f"Failed to clear memory cache: {mem_error}")
-        
+                
         return False

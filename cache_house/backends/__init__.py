@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import contextlib
 import logging
 from typing import Any, Callable
@@ -8,7 +9,6 @@ from redis.exceptions import RedisError
 
 from cache_house.backends.redis_backend import RedisCache
 from cache_house.backends.redis_cluster_backend import RedisClusterCache
-
 from cache_house.helpers import (
     DEFAULT_NAMESPACE,
     DEFAULT_PREFIX,

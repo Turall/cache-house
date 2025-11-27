@@ -1,9 +1,12 @@
 import asyncio
 import json
 import logging
+
 from cache_house.backends import RedisFactory
 from cache_house.cache import cache
-from example1 import test_cache as tt, test_cache_1 as tt1
+from example1 import test_cache as tt
+from example1 import test_cache_1 as tt1
+
 log = logging.getLogger("cache_house.backends.redis_backend").setLevel(logging.DEBUG)
 
 logging.basicConfig(level=logging.INFO)

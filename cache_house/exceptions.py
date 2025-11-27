@@ -1,9 +1,11 @@
-class RedisNotInitialize(Exception):
-    """
-        expression -- input expression in which the error occurred
-        message -- explanation of the error
-    """
+class CacheHouseError(Exception):
+    """Base exception for all cache-house errors."""
 
-    def __init__(self, expression, message):
-        self.expression = expression
-        self.message = message
+
+class RedisNotInitialized(CacheHouseError):
+    """Raised when Redis backend is used before being initialized."""
+
+
+# Backwards compatibility alias (older versions exposed this name)
+RedisNotInitialize = RedisNotInitialized
+

@@ -1,5 +1,6 @@
 import inspect
 import logging
+import os
 from datetime import timedelta
 from functools import wraps
 from typing import Any, Callable, Union
@@ -7,8 +8,9 @@ from typing import Any, Callable, Union
 from cache_house.backends import RedisFactory
 from cache_house.helpers import DEFAULT_EXPIRE_TIME
 
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
+LOG_LEVEL = os.getenv("CACHE_HOUSE_LOG_LEVEL", logging.INFO)
+log = logging.getLogger("cache_house.cache")
+log.setLevel(LOG_LEVEL)
 
 def cache(
     expire: Union[timedelta, int] = DEFAULT_EXPIRE_TIME,
@@ -52,8 +54,8 @@ def cache(
             try:
                 cached_data = cache_instance.get_key(key)
                 if cached_data:
-                    log.info("data exist in cache")
-                    log.info("return data from cache")
+                    log.debug("data exist in cache")
+                    log.debug("return data from cache")
                     return decoder(cached_data)
             except Exception as e:
                 log.warning(f"Error retrieving from cache: {e}. Proceeding without cache.")
@@ -61,7 +63,7 @@ def cache(
             result = await f(*args, **kwargs)
             try:
                 cache_instance.set_key(key, encoder(result), expire)
-                log.info("set result in cache")
+                log.debug("set result in cache")
             except Exception as e:
                 log.warning(f"Error setting cache: {e}. Result returned without caching.")
             return result
