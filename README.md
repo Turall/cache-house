@@ -99,10 +99,58 @@ def RedisFactory.init(
         key_builder: Callable[..., Any] = ...,
         password: str = ...,
         db: int = ...,
-        cluster_mode: bool = False,
-        fallback_to_memory: bool = True,  # Enable in-memory fallback when Redis is unavailable
+        cluster_mode: bool = False,        # Force cluster mode (skip auto-detection)
+        autodetect_cluster: bool = True,   # Auto-detect if Redis is running in cluster mode
+        fallback_to_memory: bool = True,   # Enable in-memory fallback when Redis is unavailable
         **redis_kwargs
     )
+```
+
+#### ***Cluster auto-detection***
+
+By default (`autodetect_cluster=True`), `RedisFactory.init` will:
+
+- Try to send `CLUSTER INFO` to the target Redis node
+- If the command succeeds → **cluster mode is detected**, and `RedisClusterCache` is used internally
+- If the command fails with a Redis error → **standalone mode is assumed**, and `RedisCache` is used
+
+This means you can usually just call:
+
+```python
+from cache_house.backends import RedisFactory
+
+RedisFactory.init(
+    host="localhost",
+    port=6379,
+    fallback_to_memory=True,
+    # autodetect_cluster=True by default
+)
+```
+
+and cache-house will automatically choose the correct backend (standalone or cluster) based on the Redis server configuration.
+
+#### ***Explicit modes (optional)***
+
+- **Force standalone Redis (no detection)**:
+
+```python
+RedisFactory.init(
+    host="localhost",
+    port=6379,
+    cluster_mode=False,
+    autodetect_cluster=False,  # Always use standalone RedisCache
+)
+```
+
+- **Force Redis Cluster (no detection)**:
+
+```python
+RedisFactory.init(
+    host="localhost",
+    port=6379,
+    cluster_mode=True,         # Always use RedisClusterCache
+    autodetect_cluster=False,  # Optional, explicit
+)
 ```
 
 #### ***Best Practice: Initialize Redis with fallback enabled***
@@ -765,4 +813,4 @@ Fetching user 1 from API...
 
 #### Free to open issue and send PR ####
 
-### cache-house  supports Python >= 3.7
+### cache-house  supports Python >= 3.10

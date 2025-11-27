@@ -1,6 +1,11 @@
 from __future__ import annotations
+import contextlib
 import logging
 from typing import Any, Callable
+
+from redis import Redis
+from redis.exceptions import RedisError
+
 from cache_house.backends.redis_backend import RedisCache
 from cache_house.backends.redis_cluster_backend import RedisClusterCache
 
@@ -40,6 +45,38 @@ class RedisFactory:
         self.key_builder = key_builder
         self.redis_kwargs = redis_kwargs
 
+    @staticmethod
+    def _is_cluster_enabled(
+        host: str,
+        port: int,
+        password: str | None = None,
+        db: int = 0,
+        **redis_kwargs: Any,
+    ) -> bool:
+        """
+        Detect whether the target Redis node is part of a Redis Cluster.
+
+        It sends `CLUSTER INFO` command to the node. Standalone Redis will
+        respond with an error, while cluster nodes will return cluster info.
+        """
+        client: Redis | None = None
+        try:
+            client = Redis(host=host, port=port, password=password, db=db, **redis_kwargs)
+            # If this command succeeds, we are talking to a cluster node.
+            client.execute_command("CLUSTER INFO")
+            log.info("Redis cluster mode detected via CLUSTER INFO")
+            return True
+        except RedisError:
+            log.info("Redis standalone mode detected")
+            return False
+        except Exception as exc:  # pragma: no cover - defensive
+            log.warning(f"Failed to auto-detect Redis cluster mode: {exc}")
+            return False
+        finally:
+            if client is not None:
+                with contextlib.suppress(Exception):
+                    client.close()
+
     @classmethod
     def init(
         cls,
@@ -53,14 +90,36 @@ class RedisFactory:
         key_prefix: str = DEFAULT_PREFIX,
         key_builder: Callable[..., Any] = key_builder,
         cluster_mode: bool = False,
+        autodetect_cluster: bool = True,
         fallback_to_memory: bool = True,
         **redis_kwargs,
     ):
+        """
+        Initialize Redis cache backend.
+
+        - If `cluster_mode` is True, always use `RedisClusterCache`.
+        - If `cluster_mode` is False and `autodetect_cluster` is True (default),
+          it will auto-detect whether the target is a Redis Cluster node by
+          issuing `CLUSTER INFO` command and choose the appropriate backend.
+        - If `autodetect_cluster` is False, always use standalone `RedisCache`.
+        """
         if not cls.instance:
-            # Cache classes handle connection errors gracefully internally
-            # Redis client will handle reconnection automatically
             try:
-                if cluster_mode:
+                use_cluster = cluster_mode
+                if not cluster_mode and autodetect_cluster:
+                    if cls._is_cluster_enabled(
+                        host=host,
+                        port=port,
+                        password=password,
+                        db=db,
+                        **redis_kwargs,
+                    ):
+                        use_cluster = True
+                        log.info(
+                            "Auto-detected Redis Cluster; using RedisClusterCache backend"
+                        )
+
+                if use_cluster:
                     backend = RedisClusterCache(
                         host=host,
                         port=port,
@@ -87,12 +146,12 @@ class RedisFactory:
                         fallback_to_memory=fallback_to_memory,
                         **redis_kwargs,
                     )
+
                 cls.instance = backend.instance
             except Exception as err:
                 # Handle any unexpected errors during initialization
                 log.error(f"Failed to initialize Redis cache: {err}")
                 log.warning("Cache operations will be skipped until Redis is available.")
-
 
     @classmethod
     def get_instance(cls):

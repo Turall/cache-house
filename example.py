@@ -6,8 +6,8 @@ from cache_house.cache import cache
 from example1 import test_cache as tt, test_cache_1 as tt1
 log = logging.getLogger("cache_house.backends.redis_backend").setLevel(logging.DEBUG)
 
-# logging.basicConfig(level=logging.DEBUG)
-RedisFactory.init()
+logging.basicConfig(level=logging.INFO)
+RedisFactory.init(autodetect_cluster=True)
 
 def custom_encoder(data):
     return json.dumps(data)
