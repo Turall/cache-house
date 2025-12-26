@@ -5,7 +5,7 @@ import logging
 from typing import Any, Callable
 
 from redis import Redis
-from redis.exceptions import RedisError
+from redis.exceptions import ConnectionError, RedisError, TimeoutError
 
 from cache_house.backends.redis_backend import RedisCache
 from cache_house.backends.redis_cluster_backend import RedisClusterCache
@@ -66,7 +66,11 @@ class RedisFactory:
             client.execute_command("CLUSTER INFO")
             log.info("Redis cluster mode detected via CLUSTER INFO")
             return True
+        except (ConnectionError, TimeoutError) as e:
+            log.warning(f"Could not connect to Redis for cluster detection: {e}. Assuming standalone mode.")
+            return False
         except RedisError:
+            # Connected to Redis but CLUSTER INFO failed - it's standalone
             log.info("Redis standalone mode detected")
             return False
         except Exception as exc:  # pragma: no cover - defensive
