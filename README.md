@@ -10,17 +10,25 @@
 - ✅ **Graceful degradation**: Falls back to in-memory cache when Redis is unavailable
 - ✅ **No crashes**: All operations handle errors gracefully
 - ✅ **Async & Sync support**: Works with both async and sync functions
+- ✅ **Non-blocking async cache**: Async `@cache` uses `redis.asyncio` (does not block the event loop)
 - ✅ **Redis Cluster support**: Works with single Redis instance and Redis Cluster
 - ✅ **Custom encoders/decoders**: Support for custom serialization
+
+### Requirements ###
+
+- Python `>= 3.11`
+- [redis-py](https://github.com/redis/redis-py) `>= 8.2`
 
 ### Installation ###
 
 ```sh
- $ pip install cache-house 
+pip install cache-house
 ```
-or with poetry
+
+or with uv:
+
 ```sh
-poetry add cache-house
+uv add cache-house
 ```
 
 
@@ -176,10 +184,10 @@ from cache_house.backends import RedisFactory
 import json
 
 def custom_encoder(data):
-    return json.dumps(data)
+    return json.dumps(data).encode()
 
 def custom_decoder(data):
-    return json.loads(data)
+    return json.loads(data.decode())
 
 RedisFactory.init(
     encoder=custom_encoder, 
@@ -189,6 +197,8 @@ RedisFactory.init(
 ```
 
 #### ***Default encoder and decoder is pickle module.***
+
+Encoders should return bytes (or a value redis-py accepts for `SET`). Decoders receive the raw Redis value.
 
 *****
 ### ***Setup Redis Cluster cache instance***
@@ -222,15 +232,16 @@ async def test_cache(a: int, b: int):
 RedisFactory.init(
     cluster_mode=True,
     startup_nodes=[{"host": "127.0.0.1", "port": "7000"}],
-    cluster_error_retry_attempts: int = 3,
+    cluster_error_retry_attempts: int = 10,
     require_full_coverage: bool = True,
-    skip_full_coverage_check: bool = False,
-    reinitialize_steps: int = 10,
+    reinitialize_steps: int = 5,
     read_from_replicas: bool = False,
     fallback_to_memory: bool = True,
     **redis_kwargs
 )
 ```
+
+Note: `skip_full_coverage_check` was removed in redis-py. Use `require_full_coverage=False` instead.
 
 *****
 ### ***Setup cache instance with FastAPI***
@@ -261,8 +272,8 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    # Gracefully close connections
-    RedisFactory.close_connections()
+    # Prefer aclose_connections in async apps (closes sync + async clients)
+    await RedisFactory.aclose_connections()
     print("App shutdown - Redis connections closed")
 
 
@@ -595,10 +606,10 @@ from cache_house.cache import cache
 RedisFactory.init(fallback_to_memory=True)
 
 def custom_encoder(data):
-    return json.dumps(data)
+    return json.dumps(data).encode()
 
 def custom_decoder(data):
-    return json.loads(data)
+    return json.loads(data.decode())
 
 @cache(expire=30, encoder=custom_encoder, decoder=custom_decoder, namespace="custom")
 async def test_cache(a: int, b: int):
@@ -703,8 +714,10 @@ def my_function():
    ```python
    @app.on_event("shutdown")
    async def shutdown():
-       RedisFactory.close_connections()
+       await RedisFactory.aclose_connections()
    ```
+
+   For sync-only scripts, `RedisFactory.close_connections()` is enough.
 
 *****
 ### ***Complete Example: Production-Ready Setup***
@@ -783,8 +796,8 @@ async def main():
     print(await get_user_posts(1))  # First call - queries
     print(await get_user_posts(1))  # Second call - from cache
     
-    # Clean up
-    RedisFactory.close_connections()
+    # Clean up sync + async Redis clients
+    await RedisFactory.aclose_connections()
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -809,8 +822,17 @@ Fetching user 1 from API...
 ### ***All examples work with both Redis Cluster and single Redis instance.***
 *****
 
+### Migrating to 1.1.0 ###
+
+- Requires **Python >= 3.11** and **redis-py >= 8.2**
+- Async `@cache` no longer blocks the event loop (uses `redis.asyncio`)
+- Cache values are encoded/decoded once (flush old keys or wait for TTL if you upgrade from 1.0.x double-encoded entries)
+- Falsy values (`0`, `False`, `[]`, `""`) are valid cache hits
+- Prefer `await RedisFactory.aclose_connections()` in async apps
+- `skip_full_coverage_check` is removed; use `require_full_coverage=False`
+
 # Contributing #
 
 #### Free to open issue and send PR ####
 
-### cache-house  supports Python >= 3.10
+### cache-house supports Python >= 3.11

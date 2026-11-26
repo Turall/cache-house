@@ -1,11 +1,30 @@
 import hashlib
+import inspect
 import pickle
 from datetime import timedelta
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple, Type
 
 DEFAULT_EXPIRE_TIME = timedelta(seconds=180)
 DEFAULT_NAMESPACE = "main"
 DEFAULT_PREFIX = "cachehouse"
+
+
+def filter_client_kwargs(client_cls: Type[Any], kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep only parameters accepted by a redis-py client constructor.
+
+    redis-py 8 removed ``**kwargs`` from many client ``__init__`` signatures, so
+    callers must not forward unknown options.
+    """
+    params = inspect.signature(client_cls.__init__).parameters
+    if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in params.values()):
+        return dict(kwargs)
+
+    allowed = {
+        name
+        for name, param in params.items()
+        if name != "self" and param.kind != inspect.Parameter.VAR_POSITIONAL
+    }
+    return {key: value for key, value in kwargs.items() if key in allowed}
 
 
 def _normalize_args(args: Tuple[Any, ...]) -> Tuple[Any, ...]:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import inspect
 import logging
 from typing import Any, Callable
 
@@ -12,6 +13,7 @@ from cache_house.backends.redis_cluster_backend import RedisClusterCache
 from cache_house.helpers import (
     DEFAULT_NAMESPACE,
     DEFAULT_PREFIX,
+    filter_client_kwargs,
     key_builder,
     pickle_decoder,
     pickle_encoder,
@@ -61,7 +63,18 @@ class RedisFactory:
         """
         client: Redis | None = None
         try:
-            client = Redis(host=host, port=port, password=password, db=db, **redis_kwargs)
+            client = Redis(
+                **filter_client_kwargs(
+                    Redis,
+                    {
+                        "host": host,
+                        "port": port,
+                        "password": password,
+                        "db": db,
+                        **redis_kwargs,
+                    },
+                )
+            )
             # If this command succeeds, we are talking to a cluster node.
             client.execute_command("CLUSTER INFO")
             log.info("Redis cluster mode detected via CLUSTER INFO")
@@ -166,12 +179,34 @@ class RedisFactory:
 
     @classmethod
     def close_connections(cls):
-        if cls.instance:
-            try:
+        """Close the sync Redis client. Prefer `aclose_connections` in async apps."""
+        if not cls.instance:
+            return
+        try:
+            if cls.instance.redis is not None:
                 cls.instance.redis.close()
-                log.info("close redis connection")
+            log.info("close redis connection")
+        except Exception as e:
+            log.warning(f"Error closing Redis connection: {e}")
+
+    @classmethod
+    async def aclose_connections(cls):
+        """Close sync and async Redis clients."""
+        if not cls.instance:
+            return
+
+        async_redis = getattr(cls.instance, "async_redis", None)
+        if async_redis is not None:
+            try:
+                close_result = async_redis.aclose()
+                if inspect.isawaitable(close_result):
+                    await close_result
+                cls.instance.async_redis = None
+                log.info("close async redis connection")
             except Exception as e:
-                log.warning(f"Error closing Redis connection: {e}")
+                log.warning(f"Error closing async Redis connection: {e}")
+
+        cls.close_connections()
 
 
 __all__ = [

@@ -1,7 +1,9 @@
 import logging
 import os
-from typing import Any, Callable, Dict
+import warnings
+from typing import Any, Callable, Dict, Optional
 
+from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
 from redis.cluster import RedisCluster
 from redis.exceptions import ConnectionError, RedisError, TimeoutError
 
@@ -9,6 +11,7 @@ from cache_house.backends.redis_backend import RedisCache
 from cache_house.helpers import (
     DEFAULT_NAMESPACE,
     DEFAULT_PREFIX,
+    filter_client_kwargs,
     key_builder,
     pickle_decoder,
     pickle_encoder,
@@ -24,53 +27,75 @@ class RedisClusterCache(RedisCache):
 
     def __init__(
         self,
-        host="localhost",
-        port=6379,
+        password: Optional[str] = None,
+        db: int = 0,
+        host: str = "localhost",
+        port: int = 6379,
         encoder: Callable[..., Any] = pickle_encoder,
         decoder: Callable[..., Any] = pickle_decoder,
-        startup_nodes=None,
-        cluster_error_retry_attempts: int = 3,
-        require_full_coverage: bool = True,
-        skip_full_coverage_check: bool = False,
-        reinitialize_steps: int = 10,
-        read_from_replicas: bool = False,
-        url: Any = None,
         namespace: str = DEFAULT_NAMESPACE,
         key_prefix: str = DEFAULT_PREFIX,
         key_builder: Callable[..., Any] = key_builder,
         fallback_to_memory: bool = True,
+        *,
+        startup_nodes=None,
+        cluster_error_retry_attempts: int = 10,
+        require_full_coverage: bool = True,
+        reinitialize_steps: int = 5,
+        read_from_replicas: bool = False,
+        url: Any = None,
         **kwargs,
     ) -> None:
+        # db is unused by Redis Cluster; kept for RedisCache signature compatibility.
+        _ = db
+
+        # Removed in redis-py; map the old flag onto require_full_coverage.
+        skip_full_coverage_check = kwargs.pop("skip_full_coverage_check", None)
+        if skip_full_coverage_check:
+            warnings.warn(
+                "skip_full_coverage_check is removed in redis-py; "
+                "use require_full_coverage=False instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            require_full_coverage = False
+
         self.host = host
         self.port = port
         self.startup_nodes = startup_nodes
         self.cluster_error_retry_attempts = cluster_error_retry_attempts
         self.require_full_coverage = require_full_coverage
-        self.skip_full_coverage_check = skip_full_coverage_check
         self.reinitialize_steps = reinitialize_steps
         self.read_from_replicas = read_from_replicas
         self.url = url
         self.cluster_kwargs = kwargs
-        
+
+        if password is not None and "password" not in kwargs:
+            kwargs = {**kwargs, "password": password}
+
+        shared_args = dict(
+            host=host,
+            port=port,
+            startup_nodes=startup_nodes,
+            cluster_error_retry_attempts=cluster_error_retry_attempts,
+            require_full_coverage=require_full_coverage,
+            reinitialize_steps=reinitialize_steps,
+            read_from_replicas=read_from_replicas,
+            **kwargs,
+        )
+
+        self.redis = None
+        self.async_redis = None
+        self._async_loop_id = None
+        self._async_client_args = filter_client_kwargs(AsyncRedisCluster, shared_args)
         try:
-            self.redis = RedisCluster(
-                host=host,
-                port=port,
-                startup_nodes=startup_nodes,
-                cluster_error_retry_attempts=cluster_error_retry_attempts,
-                require_full_coverage=require_full_coverage,
-                skip_full_coverage_check=skip_full_coverage_check,
-                reinitialize_steps=reinitialize_steps,
-                read_from_replicas=read_from_replicas,
-                url=url,
-                **kwargs,
-            )
+            sync_args = filter_client_kwargs(RedisCluster, {**shared_args, "url": url})
+            self.redis = RedisCluster(**sync_args)
             log.info("redis cluster initialized (Redis will handle reconnections automatically)")
-        except (ConnectionError, TimeoutError, RedisError) as e:
+        except (ConnectionError, TimeoutError, RedisError, TypeError) as e:
             log.warning(f"Redis cluster connection failed during initialization: {e}")
-            log.warning("Falling back to in-memory cache. Redis operations will be retried automatically.")
-            self.redis = None
-        
+            log.warning("Falling back to in-memory cache for sync operations.")
+
         self.encoder = encoder
         self.decoder = decoder
         self.namespace = namespace
@@ -80,44 +105,51 @@ class RedisClusterCache(RedisCache):
         self._memory_cache: Dict[str, tuple] = {}  # key -> (value, expiry_time)
         RedisClusterCache.instance = self
 
+    def _create_async_redis(self):
+        return AsyncRedisCluster(**self._async_client_args)
+
     @classmethod
     def init(
         cls,
-        host="localhost",
-        port=6379,
+        password: Optional[str] = None,
+        db: int = 0,
+        host: str = "localhost",
+        port: int = 6379,
         encoder: Callable[..., Any] = pickle_encoder,
         decoder: Callable[..., Any] = pickle_decoder,
-        startup_nodes=None,
-        cluster_error_retry_attempts: int = 3,
-        require_full_coverage: bool = True,
-        skip_full_coverage_check: bool = False,
-        reinitialize_steps: int = 10,
-        read_from_replicas: bool = False,
-        url: Any = None,
         namespace: str = DEFAULT_NAMESPACE,
         key_prefix: str = DEFAULT_PREFIX,
         key_builder: Callable[..., Any] = key_builder,
+        fallback_to_memory: bool = True,
+        *,
+        startup_nodes=None,
+        cluster_error_retry_attempts: int = 10,
+        require_full_coverage: bool = True,
+        reinitialize_steps: int = 5,
+        read_from_replicas: bool = False,
+        url: Any = None,
         **kwargs,
     ):
         if not cls.instance:
             cls(
+                password=password,
+                db=db,
                 host=host,
                 port=port,
-                startup_nodes=startup_nodes,
-                cluster_error_retry_attempts=cluster_error_retry_attempts,
-                require_full_coverage=require_full_coverage,
-                skip_full_coverage_check=skip_full_coverage_check,
-                reinitialize_steps=reinitialize_steps,
-                read_from_replicas=read_from_replicas,
-                url=url,
                 encoder=encoder,
                 decoder=decoder,
                 namespace=namespace,
                 key_prefix=key_prefix,
                 key_builder=key_builder,
+                fallback_to_memory=fallback_to_memory,
+                startup_nodes=startup_nodes,
+                cluster_error_retry_attempts=cluster_error_retry_attempts,
+                require_full_coverage=require_full_coverage,
+                reinitialize_steps=reinitialize_steps,
+                read_from_replicas=read_from_replicas,
+                url=url,
                 **kwargs,
             )
-
 
     @classmethod
     def clear_keys(cls, pattern: str):
@@ -125,7 +157,7 @@ class RedisClusterCache(RedisCache):
         if not cls.instance:
             log.warning("RedisClusterCache instance not available")
             return False
-        
+
         if cls.instance.redis is None:
             # Fallback: clear from memory cache
             if cls.instance.fallback_to_memory:
@@ -141,22 +173,26 @@ class RedisClusterCache(RedisCache):
                 except Exception as mem_error:
                     log.error(f"Failed to clear memory cache: {mem_error}")
             return False
-        
+
         ns_keys = f"{pattern}*"
-        
+
         # Try Redis cluster first - Redis client handles reconnection automatically
         try:
             keys = []
             batch_size = 300
-            for key in cls.instance.redis.scan_iter(match=ns_keys, count=batch_size, target_nodes=RedisCluster.ALL_NODES):
+            for key in cls.instance.redis.scan_iter(
+                match=ns_keys,
+                count=batch_size,
+                target_nodes=RedisCluster.ALL_NODES,
+            ):
                 log.info(key)
                 keys.append(key)
                 if len(keys) >= batch_size:
                     cls.instance.redis.delete(*keys)
                     keys = []
-                if len(keys) > 0:
-                    cls.instance.redis.delete(*keys)
-                    return True
+            if keys:
+                cls.instance.redis.delete(*keys)
+            return True
         except (ConnectionError, TimeoutError, RedisError) as e:
             log.warning(f"Redis cluster clear_keys failed: {e}")
             # Fallback: clear from memory cache
@@ -172,5 +208,5 @@ class RedisClusterCache(RedisCache):
                     return True
                 except Exception as mem_error:
                     log.error(f"Failed to clear memory cache: {mem_error}")
-                
+
         return False
